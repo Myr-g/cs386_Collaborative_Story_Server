@@ -8,9 +8,6 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
-char story[10000] = {0};
-pthread_mutex_t story_lock = PTHREAD_MUTEX_INITIALIZER;
-
 typedef struct session
 {
     char name[64];
@@ -239,6 +236,12 @@ void *handle_client(void *arg)
                 // Trim newline
                 session_name[strcspn(session_name, "\r\n")] = '\0';
 
+                if(username[0] == '\0')
+                {
+                    send(client_fd, "ERROR; You must JOIN first.\n", 29, 0);
+                    continue;
+                }
+
                 // Check if session name already exists
                 session_t *current = find_session(session_name);
 
@@ -266,9 +269,16 @@ void *handle_client(void *arg)
 
             else if(strncmp(buffer, "VIEW", 4) == 0)
             {
-                pthread_mutex_lock(&story_lock);
-                send(client_fd, story, strlen(story), 0);
-                pthread_mutex_unlock(&story_lock);
+                if (current_session == NULL)
+                {
+                    char *reply = "ERROR; You are not in a SESSION.\n";
+                    send(client_fd, reply, strlen(reply), 0);
+                    continue;
+                }
+
+                pthread_mutex_lock(&current_session->lock);
+                send(client_fd, current_session->story, strlen(current_session->story), 0);
+                pthread_mutex_unlock(&current_session->lock);
             }
 
             else if(strncmp(buffer, "WRITE ", 6) == 0)
@@ -276,16 +286,55 @@ void *handle_client(void *arg)
                 char story_copy[10000] = {0};
                 strcpy(story_copy, buffer + 6);
 
-                pthread_mutex_lock(&story_lock);
-                strcat(story, story_copy);
-                pthread_mutex_unlock(&story_lock);
+                if (current_session == NULL)
+                {
+                    char *reply = "ERROR; You are not in a SESSION.\n";
+                    send(client_fd, reply, strlen(reply), 0);
+                    continue;
+                }
 
-                char *reply = "Added to story!\n";
+                pthread_mutex_lock(&current_session->lock);
+                strcat(current_session->story, story_copy);
+                pthread_mutex_unlock(&current_session->lock);
+
+                char *reply = "Story updated.\n";
                 send(client_fd, reply, strlen(reply), 0);
+            }
+
+            else if(strncmp(buffer, "EXIT SESSION", 12) == 0)
+            {
+                if(current_session == NULL)
+                {
+                    char *reply = "ERROR; You are not in a SESSION.\n";
+                    send(client_fd, reply, strlen(reply), 0);
+                    continue;
+                }
+
+                else
+                {
+                    pthread_mutex_lock(&current_session->lock);
+                    current_session->participant_count -= 1;
+                    pthread_mutex_unlock(&current_session->lock);
+
+                    current_session = NULL;
+
+                    char *reply = "Exiting current SESSION.\n";
+                    send(client_fd, reply, strlen(reply), 0);
+                    continue;
+                }
             }
 
             else if(strncmp(buffer, "QUIT", 4) == 0)
             {
+                if(current_session != NULL)
+                {
+                    pthread_mutex_lock(&current_session->lock);
+                    current_session->participant_count -= 1;
+                    pthread_mutex_unlock(&current_session->lock);
+
+                    current_session = NULL;
+                }
+                
                 char *reply = "Goodbye.";
                 send(client_fd, reply, strlen(reply), 0);
                 break;
