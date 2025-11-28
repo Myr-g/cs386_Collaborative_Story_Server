@@ -12,13 +12,13 @@ int main() {
     struct sockaddr_in serv_addr;
     char buffer[BUFFER_SIZE];
 
-    // 1. Create socket
+    // Create socket
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation error");
         return -1;
     }
 
-    // 2. Define server address
+    // Define server address
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
 
@@ -28,22 +28,22 @@ int main() {
         return -1;
     }
 
-    // 3. Connect
+    // Connect
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Connection failed");
         return -1;
     }
 
-    // 4. Send message
+    // Send message
     char *msg = "Hello from client!";
     send(sock, msg, strlen(msg), 0);
 
-    // 5. Receive reply
+    // Receive reply
     memset(buffer, 0, BUFFER_SIZE);
     read(sock, buffer, BUFFER_SIZE);
     printf("Server replied: %s\n", buffer);
 
-    // 6. Close socket
+    // Close socket
     close(sock);
     return 0;
 }

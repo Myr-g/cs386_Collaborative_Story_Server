@@ -61,6 +61,20 @@ session_t *create_session(const char *name, const char *genre)
     new_session->log_fp = NULL;
     pthread_mutex_init(&new_session->lock, NULL);
 
+    char filename[128];
+    snprintf(filename, sizeof(filename), "logs/%s.txt", new_session->name);
+    FILE *fp = fopen(filename, "a");
+
+    if(fp == NULL)
+    {
+        new_session->log_fp = NULL;
+    }
+
+    else
+    {
+        new_session->log_fp = fp;
+    }
+
     // Insert into linked list (head insertion)
     new_session->next = sessions_head;
     sessions_head = new_session;
@@ -378,14 +392,14 @@ int main()
     int addrlen = sizeof(address);
     char buffer[BUFFER_SIZE];
 
-    // 1. Create socket
+    // Create socket
     if((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
     {
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
 
-    // 2. Bind socket to port
+    // Bind socket to port
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;   // Listen on all interfaces
     address.sin_port = htons(PORT);
@@ -396,7 +410,7 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    // 3. Listen for connections
+    // Listen for connections
     if(listen(server_fd, 1) < 0) 
     {
         perror("listen");
@@ -418,10 +432,10 @@ int main()
         printf("New client connected!\n");
 
         pthread_t thread;
-        int *pclient = malloc(sizeof(int));  // allocate memory so thread gets unique socket value
+        int *pclient = malloc(sizeof(int));
         *pclient = client_fd;
 
         pthread_create(&thread, NULL, handle_client, pclient);
-        pthread_detach(thread); // don't require join, thread cleans up after itself
+        pthread_detach(thread);
     }
 }
