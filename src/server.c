@@ -267,6 +267,30 @@ void *handle_client(void *arg)
                 }
             }
 
+            else if (strncmp(buffer, "LIST SESSIONS", 13) == 0)
+            {
+                pthread_mutex_lock(&sessions_lock);
+
+                char reply[2048];
+                reply[0] = '\0';
+
+                session_t *current = sessions_head;
+
+                snprintf(reply, sizeof(reply), "Active Sessions:\n");
+
+                while(current != NULL)
+                {
+                    int next_index = strlen(reply);
+                    snprintf(reply + next_index, sizeof(reply) - next_index, "- %s (%d participants)\n", current->name, current->participant_count);
+
+                    current = current->next;
+                }
+
+                pthread_mutex_unlock(&sessions_lock);
+                send(client_fd, reply, strlen(reply), 0);
+                continue;
+            }
+
             else if(strncmp(buffer, "VIEW", 4) == 0)
             {
                 if (current_session == NULL)
